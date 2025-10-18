@@ -9,6 +9,7 @@ mido = "*"
 sounddevice = "*"
 pyside6 = "*"
 pygame = "*"
+pyqtgraph = "*"
 
 [dev-packages]
 
