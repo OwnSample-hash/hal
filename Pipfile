@@ -7,7 +7,7 @@ name = "pypi"
 numpy = "*"
 mido = "*"
 sounddevice = "*"
-urwid = {extras = ["curses"], version = "*"}
+pyside6 = "*"
 pygame = "*"
 
 [dev-packages]
