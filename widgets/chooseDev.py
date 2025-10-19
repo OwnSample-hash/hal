@@ -3,7 +3,6 @@ from pygame import midi
 from PySide6 import QtWidgets, QtGui, QtCore
 from time import sleep
 
-
 class ChooseDev(QtWidgets.QMenu):
     def __init__(
         self,
@@ -20,6 +19,7 @@ class ChooseDev(QtWidgets.QMenu):
         self.selection_callback = selection_callback
         self.alive = True
         self.mutex = QtCore.QMutex()
+        self.mod_wheel = 0
 
         self.refresh_action = self.addAction("Refresh Device List")
         self.refresh_action.triggered.connect(self.refresh_device_list)
@@ -35,15 +35,35 @@ class ChooseDev(QtWidgets.QMenu):
         if not devs:
             no_dev_action = self.addAction("No MIDI Input Devices Found")
             no_dev_action.setEnabled(False)
-            self.ports[-1] =  no_dev_action
+            pixmapi = QtWidgets.QStyle.StandardPixmap.SP_DialogIgnoreButton
+            no_dev_action.setIcon(self.style().standardIcon(pixmapi))
+            self.ports[-1] = no_dev_action
             return
 
+        midi.init()
+        err_str = "PortMidi: `Host error'"
         for i, dev in devs:
+            try:
+                _ = midi.Input(i)
+            except Exception as e:
+                if err_str in str(e):
+                    continue
+                print(f"Error decoding device name: {e}")
+                continue
             print(f"Adding device: {dev}")
             action = self.addAction(dev)
             action.setData(i)
             action.triggered.connect(self.handle_device_selection)
             self.ports[i] = action
+        
+        if not self.ports:
+            no_dev_action = self.addAction("No MIDI Input Devices Available")
+            no_dev_action.setEnabled(False)
+            pixmapi = QtWidgets.QStyle.StandardPixmap.SP_DialogIgnoreButton
+            no_dev_action.setIcon(self.style().standardIcon(pixmapi))
+            self.ports[-1] = no_dev_action
+
+        midi.quit()
 
     def list_input_ports(self):
         midi.init()
@@ -89,16 +109,24 @@ class ChooseDev(QtWidgets.QMenu):
                     self.mutex.lock()
                     for event in midi_events:
                         msg, _ = event
-                        if msg[0] == 144 and msg[2] > 0:  # note_on
-                            note = msg[1]
+                        if msg[0] == 144 and msg[2] > 0:  # pyright: ignore
+                            note = msg[1] # pyright: ignore
                             freq = 440.0 * (2 ** ((note - 69) / 12))
                             self.active_notes[note] = freq
                             print(f"Note ON {note} -> {freq:.2f} Hz")
-                        elif msg[0] in (128, 144) and msg[2] == 0:  # note_off
-                            note = msg[1]
+                        elif msg[0] in (128, 144) and msg[2] == 0:  # pyright: ignore
+                            note = msg[1] # pyright: ignore
                             if note in self.active_notes:
                                 print(f"Note OFF {note}")
                                 del self.active_notes[note]
+                        elif msg[0] == 176:  # pyright: ignore
+                            # Control Change message
+                            controller = msg[1]  # pyright: ignore
+                            value = msg[2]       # pyright: ignore
+                            if controller == 1:  # Modulation Wheel
+                                self.mod_wheel = value
+                        else:
+                            print(f"Unhandled MIDI message: {msg}")
                     self.mutex.unlock()
                 sleep(0.01)  # Small delay to prevent CPU overload
             inport.close()
