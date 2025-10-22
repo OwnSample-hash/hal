@@ -5,7 +5,6 @@ import pyqtgraph as pg
 import widgets
 import threading
 
-
 class SimpleApp(QtWidgets.QWidget):
     samplerate = 44100
 
@@ -82,28 +81,20 @@ class SimpleApp(QtWidgets.QWidget):
                 self.mult_btn = mult_action
 
         sr_menu = settings_menu.addMenu("Sample Rate")
-        for rate in [22050, 44100, 48000, 96000]:
+        for rate in [8000, 11025, 22050, 44100, 48000, 96000]:
             sr_action = sr_menu.addAction(str(rate))
             sr_action.triggered.connect(self.update_sample_rate)
             if rate == self.samplerate:
                 sr_action.setIcon(self.style().standardIcon(self.pixmap))
                 self.sr_btn = sr_action
 
-        self.bg_job = threading.Thread(
-            target=self.device_menu.backgroundJob, daemon=False
-        )
-
-        if self.device_menu.port_id:
-            self.bg_job.start()
-            self.status_bar.showMessage(
-            f"Background Thread Running | Device: {self.device_menu.port_id} | Sample Rate: {self.samplerate} Hz | Wave Multiplier: {self.audioGen.wave_multiplier} | Effect: {self.audioGen.current_gen}"
-        )
-            self.audioGen.start()
+        self.bg_thread = threading.Thread(target=self.device_menu.backgroundJob, daemon=False)
 
     def closeEvent(self, event):
         self.device_menu.alive = False
-        if self.bg_job.is_alive():
-            self.bg_job.join(0.1)
+        self.device_menu.stop_midi_input()
+        if self.bg_thread.is_alive():
+            self.bg_thread.join()
         self.audioGen.stop()
         event.accept()
 
@@ -123,10 +114,14 @@ class SimpleApp(QtWidgets.QWidget):
         self.sender().setIcon(self.style().standardIcon(pixmapi))  # type: ignore
         self.sr_btn.setIcon(QtGui.QIcon()) # type: ignore
         self.samplerate = new_rate
-        self.audioGen.stop()
+        ag_playing = self.audioGen.is_playing
+        if ag_playing:
+            self.audioGen.stop()
         self.audioGen.samplerate = new_rate
         self.audioGen.time_offset = [0.0]
         self.status_bar.showMessage(f"Sample Rate set to {new_rate} Hz")
+        if ag_playing:
+           self.audioGen.start()
         self.sr_btn = self.sender()
 
     def audio_effect_changed(self):
@@ -141,12 +136,10 @@ class SimpleApp(QtWidgets.QWidget):
 
 
     def start_background_job(self):
-        if not self.bg_job.is_alive():
-            self.bg_job = threading.Thread(
-                target=self.device_menu.backgroundJob, daemon=False
-            )
-            self.bg_job.start()
         self.audioGen.start()
+        if not self.bg_thread.is_alive():
+            self.bg_thread = threading.Thread(target=self.device_menu.backgroundJob, daemon=False)
+            self.bg_thread.start()
         self.status_bar.showMessage(
             f"Background Thread Running | Device: {self.device_menu.port_id} | Sample Rate: {self.samplerate} Hz | Wave Multiplier: {self.audioGen.wave_multiplier} | Effect: {self.audioGen.current_gen}"
         )
