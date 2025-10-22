@@ -135,28 +135,6 @@ class ChooseDev(QtWidgets.QMenu):
         except Exception as e:
             print(f"Error in MIDI input handling: {e}")
             raise
-        # try:
-        #     with mido.open_input(self.port_id) as inport:  # pyright: ignore
-        #         for msg in inport:
-        #             if not self.alive:
-        #                 print("MIDI input handling thread terminating.")
-        #                 break
-
-        #             self.mutex.lock()
-        #             if msg.type == "note_on" and msg.velocity > 0:
-        #                 freq = 440.0 * (2 ** ((msg.note - 69) / 12))
-        #                 self.active_notes[msg.note] = freq
-        #                 print(f"Note ON {msg.note} -> {freq:.2f} Hz")
-
-        #             elif msg.type in ("note_off", "note_on") and msg.velocity == 0:
-        #                 if msg.note in self.active_notes:
-        #                     print(f"Note OFF {msg.note}")
-        #                     del self.active_notes[msg.note]
-        #             self.mutex.unlock()
-
-        # except Exception as e:
-        #     print(f"Error in MIDI input handling: {e}")
-        #     raise
 
 
 # vim: set ts=4 sw=4 sts=4 et ai:
