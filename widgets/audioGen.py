@@ -2,20 +2,12 @@ import numpy as np
 from PySide6.QtCore import QObject, Signal
 import sounddevice as sd
 
-
 class AudioGens:
     def __getitem__(self, name):
-        match name:
-            case "sine":
-                return self.sine
-            case "sine_vibrato":
-                return self.sine_vibrato
-            case "square":
-                return self.square
-            case "sawtooth":
-                return self.sawtooth
-            case _:
-                raise KeyError(f"Audio generator '{name}' not found.")
+        if name in self._get_available_gens():
+            return getattr(self, name)
+        else:
+            raise KeyError(f"Audio generator '{name}' not found.")
 
     def _get_available_gens(self):
         return [func for func in dir(self) if not func.startswith("_") and callable(getattr(self, func))]
@@ -38,6 +30,23 @@ class AudioGens:
     def square(self, t, active_notes, time_offset, mod_wheel=0):
         return [
             np.sign(np.sin(2 * np.pi * freq * (t + time_offset[0])))
+            for freq in active_notes.values()
+        ]
+
+    def square_pwm(self, t, active_notes, time_offset, mod_wheel=0):
+        pulse_width = 0.1 + (mod_wheel / 127.0) * 0.8  # Varies from 0.1 to 0.9
+        return [
+            np.where(
+                (t * freq) % 1 < pulse_width,
+                1.0,
+                -1.0
+            )
+            for freq in active_notes.values()
+        ]
+
+    def triangle(self, t, active_notes, time_offset, mod_wheel=0):
+        return [
+            2 * np.abs(2 * (t * freq - np.floor(0.5 + t * freq))) - 1
             for freq in active_notes.values()
         ]
 
