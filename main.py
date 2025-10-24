@@ -6,7 +6,7 @@ import widgets
 import threading
 
 class SimpleApp(QtWidgets.QWidget):
-    samplerate = 44100
+    samplerate = 48000
 
     def __init__(self):
         super().__init__()
@@ -117,11 +117,13 @@ class SimpleApp(QtWidgets.QWidget):
         ag_playing = self.audioGen.is_playing
         if ag_playing:
             self.audioGen.stop()
+            self.device_menu.stop_midi_input()
         self.audioGen.samplerate = new_rate
         self.audioGen.time_offset = [0.0]
         self.status_bar.showMessage(f"Sample Rate set to {new_rate} Hz")
         if ag_playing:
-           self.audioGen.start()
+            self.audioGen.start()
+            self.start_background_job()
         self.sr_btn = self.sender()
 
     def audio_effect_changed(self):
@@ -136,6 +138,9 @@ class SimpleApp(QtWidgets.QWidget):
 
 
     def start_background_job(self):
+        if self.device_menu.port_id is None:
+            self.status_bar.showMessage("No MIDI Device Selected")
+            return
         self.audioGen.start()
         if not self.bg_thread.is_alive():
             self.bg_thread = threading.Thread(target=self.device_menu.backgroundJob, daemon=False)
@@ -145,6 +150,9 @@ class SimpleApp(QtWidgets.QWidget):
         )
 
     def stop_midi_input(self):
+        if self.device_menu.port_id is None:
+            self.status_bar.showMessage("No MIDI Device Selected")
+            return
         self.device_menu.stop_midi_input()
         self.audioGen.stop()
         self.status_bar.showMessage("MIDI Input Stopped")
