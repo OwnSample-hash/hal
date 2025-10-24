@@ -68,7 +68,7 @@ class AudioGen(QObject):
         super().__init__()
         self.samplerate = samplerate
         self.phase = 0.0
-        self.is_playing = True
+        self.is_playing = False
         self.stream = None
         self.time_offset = [0.0]
         self.plot_graph = plot_graph
