@@ -39,7 +39,7 @@ class SimpleApp(QtWidgets.QWidget):
         menu_bar.addMenu(self.device_menu)
 
         self.audioGen = widgets.AudioGen(
-            self.plot_graph, self.device_menu, samplerate=self.samplerate
+            self.device_menu, samplerate=self.samplerate
         )
 
         self.audioGen.communicator.update_plot.connect(

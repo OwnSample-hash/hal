@@ -62,14 +62,13 @@ class SignalCommunicator(QObject):
 
 
 class AudioGen(QObject):
-    def __init__(self, plot_graph, device_menu, samplerate=44100):
+    def __init__(self, device_menu, samplerate=44100):
         super().__init__()
         self.samplerate = samplerate
         self.phase = 0.0
         self.is_playing = False
         self.stream = None
         self.time_offset = [0.0]
-        self.plot_graph = plot_graph
         self.device_menu = device_menu
         self.wave_multiplier = 1.0
         self.communicator = SignalCommunicator()
