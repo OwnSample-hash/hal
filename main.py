@@ -2,6 +2,7 @@
 import sys
 from PySide6 import QtWidgets, QtGui
 import pyqtgraph as pg
+import numpy as np
 import widgets
 import threading
 
@@ -22,8 +23,17 @@ class SimpleApp(QtWidgets.QWidget):
         self.plot_graph.hideButtons()
         self.plot_graph.getPlotItem().setMenuEnabled(False)  # pyright: ignore
 
+        self.fft_graph = pg.PlotWidget()
+        self.fft_graph.setYRange(0, 1)
+        self.fft_graph.setLabel("left", "Magnitude")
+        self.fft_graph.setLabel("bottom", "Frequency", units="Hz")
+        self.fft_graph.setMouseEnabled(x=False, y=False)
+        self.fft_graph.hideButtons()
+        self.fft_graph.getPlotItem().setMenuEnabled(False) # pyright: ignore
+
         layout = QtWidgets.QVBoxLayout(self)
         layout.addWidget(self.plot_graph)
+        layout.addWidget(self.fft_graph)
 
         menu_bar = QtWidgets.QMenuBar(self)
         layout.setMenuBar(menu_bar)
@@ -44,6 +54,16 @@ class SimpleApp(QtWidgets.QWidget):
 
         self.audioGen.communicator.update_plot.connect(
             lambda t: self.plot_graph.plot(*t, clear=True)
+        )
+
+        self.audioGen.communicator.update_plot.connect(
+            lambda t: self.fft_graph.plot(
+                np.fft.rfftfreq(
+                    len(t[1]), d=1.0 / self.audioGen.samplerate
+                ),
+                np.abs(np.fft.rfft(t[1])) / len(t[1]),
+                clear=True,
+            )
         )
 
         effects = self.audioGen.audio_gens._get_available_gens()
