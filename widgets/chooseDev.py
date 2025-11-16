@@ -9,11 +9,9 @@ class ChooseDev(QtWidgets.QMenu):
         title: str,
         parent: QtWidgets.QWidget,
         selection_callback: Callable,
-        backend: str = "mido.backends.pygame",
     ):
         super().__init__(title, parent)
         self.port_id = None
-        self.backend = backend
         self.ports: dict[int, QtGui.QAction] = {}
         self.active_notes = {}
         self.selection_callback = selection_callback
