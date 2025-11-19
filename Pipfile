@@ -9,6 +9,7 @@ sounddevice = "*"
 pyside6 = "*"
 pygame = "*"
 pyqtgraph = "*"
+asynciopyside6 = "*"
 
 [dev-packages]
 

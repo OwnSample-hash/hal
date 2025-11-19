@@ -15,7 +15,7 @@ class ChooseDev(QtWidgets.QMenu):
         self.ports: dict[int, QtGui.QAction] = {}
         self.active_notes = {}
         self.selection_callback = selection_callback
-        self.alive = True
+        self.alive = False
         self.mutex = QtCore.QMutex()
         self.mod_wheel = 0
 
@@ -96,6 +96,7 @@ class ChooseDev(QtWidgets.QMenu):
         if self.port_id is None:
             print("No MIDI port selected.")
             return
+        self.alive = True
 
         print(f"Listening on MIDI port: {self.port_id}")
         try:

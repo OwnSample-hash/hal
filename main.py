@@ -1,17 +1,23 @@
 #!/bin/env python3
 import sys
 from PySide6 import QtWidgets, QtGui
+from PySide6.QtCore import Signal
+from AsyncioPySide6 import AsyncioPySide6
 import pyqtgraph as pg
 import numpy as np
 import widgets
 import threading
+import asyncio
 
 class SimpleApp(QtWidgets.QWidget):
     samplerate = 48000
+    status_signal = Signal(str)
+    base_message = "Background Thread {} | Device: {} | Sample Rate: {} Hz | Wave Multiplier: {} | Audio Generator: {}"
+    pixmap = QtWidgets.QStyle.StandardPixmap.SP_DialogApplyButton
 
     def __init__(self):
         super().__init__()
-        self.pixmap = QtWidgets.QStyle.StandardPixmap.SP_DialogApplyButton
+        self.status_signal.connect(self.update_staus_bar)
         self.setWindowTitle("MIDI Audio Visualizer")
         self.resize(1280, 720)
 
@@ -67,7 +73,7 @@ class SimpleApp(QtWidgets.QWidget):
         )
 
         effects = self.audioGen.audio_gens._get_available_gens()
-        effect_menu = menu_bar.addMenu("Effects")
+        effect_menu = menu_bar.addMenu("Audio Generator")
         for effect in effects:
             effect_action = effect_menu.addAction(effect.replace("_", " ").title())
             effect_action.triggered.connect(self.audio_effect_changed)
@@ -86,7 +92,7 @@ class SimpleApp(QtWidgets.QWidget):
         # status bar
         self.status_bar = QtWidgets.QStatusBar(self)
         layout.addWidget(self.status_bar)
-        self.status_bar.showMessage("Background Thread Not Running")
+        self.status_signal.emit("Background Thread Not Running")
 
         # sample rate input field
         settings_menu = menu_bar.addMenu("Settings")
@@ -110,6 +116,21 @@ class SimpleApp(QtWidgets.QWidget):
 
         self.bg_thread = threading.Thread(target=self.device_menu.backgroundJob, daemon=False)
 
+    def update_staus_bar(self, message: str):
+        async def update_staus_bar(self, message: str):
+            self.status_bar.showMessage(message)
+            await asyncio.sleep(2.5)
+            self.status_bar.showMessage(
+                self.base_message.format(
+                    self.device_menu.alive and "Running" or "Not Running",
+                    self.device_menu.port_id,
+                    self.samplerate,
+                    self.audioGen.wave_multiplier,
+                    self.audioGen.current_gen,
+                )
+            )
+        AsyncioPySide6.runTask(update_staus_bar(self, message))
+
     def closeEvent(self, event):
         self.device_menu.alive = False
         self.device_menu.stop_midi_input()
@@ -123,9 +144,7 @@ class SimpleApp(QtWidgets.QWidget):
         self.audioGen.wave_multiplier = multiplier
         self.sender().setIcon(self.style().standardIcon(self.pixmap))  # type: ignore
         self.mult_btn.setIcon(QtGui.QIcon())  # type: ignore
-        self.status_bar.showMessage(
-            f"Background Thread Running | Device: {self.device_menu.port_id} | Sample Rate: {self.samplerate} Hz | Wave Multiplier: {self.audioGen.wave_multiplier} | Effect: {self.audioGen.current_gen}"
-        )
+        self.status_signal.emit(f"Wave Amplitude Multiplier set to {multiplier}")
         self.mult_btn = self.sender()
 
     def update_sample_rate(self):
@@ -140,7 +159,7 @@ class SimpleApp(QtWidgets.QWidget):
             self.device_menu.stop_midi_input()
         self.audioGen.samplerate = new_rate
         self.audioGen.time_offset = [0.0]
-        self.status_bar.showMessage(f"Sample Rate set to {new_rate} Hz")
+        self.status_signal.emit(f"Sample Rate set to {new_rate} Hz")
         if ag_playing:
             self.audioGen.start()
             self.start_background_job()
@@ -149,9 +168,7 @@ class SimpleApp(QtWidgets.QWidget):
     def audio_effect_changed(self):
         effect = self.sender().data()  # type: ignore
         self.audioGen.current_gen = effect
-        self.status_bar.showMessage(
-            f"Background Thread Running | Device: {self.device_menu.port_id} | Sample Rate: {self.samplerate} Hz | Wave Multiplier: {self.audioGen.wave_multiplier} | Effect: {effect}"
-        )
+        self.status_signal.emit(f"Audio Generator changed to {effect}")
         self.sender().setIcon(self.style().standardIcon(self.pixmap))  # type: ignore
         self.effect_btn.setIcon(QtGui.QIcon())  # type: ignore
         self.effect_btn = self.sender()
@@ -159,30 +176,28 @@ class SimpleApp(QtWidgets.QWidget):
 
     def start_background_job(self):
         if self.device_menu.port_id is None:
-            self.status_bar.showMessage("No MIDI Device Selected")
+            self.status_signal.emit("No MIDI Device Selected")
             return
         self.audioGen.start()
         if not self.bg_thread.is_alive():
             self.bg_thread = threading.Thread(target=self.device_menu.backgroundJob, daemon=False)
             self.bg_thread.start()
-        self.status_bar.showMessage(
-            f"Background Thread Running | Device: {self.device_menu.port_id} | Sample Rate: {self.samplerate} Hz | Wave Multiplier: {self.audioGen.wave_multiplier} | Effect: {self.audioGen.current_gen}"
-        )
 
     def stop_midi_input(self):
         if self.device_menu.port_id is None:
-            self.status_bar.showMessage("No MIDI Device Selected")
+            self.status_signal.emit("No MIDI Device Selected")
             return
         self.device_menu.stop_midi_input()
         self.audioGen.stop()
-        self.status_bar.showMessage("MIDI Input Stopped")
+        self.status_signal.emit("MIDI Input Stopped")
 
 
 if __name__ == "__main__":
-    app = QtWidgets.QApplication([])
-    app.setFont(QtGui.QFont("Arial", 14))
-    window = SimpleApp()
-    window.show()
-    sys.exit(app.exec())
+    app = QtWidgets.QApplication(sys.argv)
+    with AsyncioPySide6.use_asyncio():
+        app.setFont(QtGui.QFont("Arial", 14))
+        window = SimpleApp()
+        window.show()
+        sys.exit(app.exec())
 
 # vim: set ts=4 sw=4 sts=4 et ai:
